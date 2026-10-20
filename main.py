@@ -1,3 +1,7 @@
+import threading
+from contextlib import asynccontextmanager
+
+from worker import process_pending_transactions
 
 from datetime import datetime, timezone
 
@@ -9,7 +13,18 @@ from database import get_db_connection
 from schemas import TransactionStatusResponse, TransactionWebhook
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    worker_thread = threading.Thread(
+        target=process_pending_transactions,
+        daemon=True,
+    )
+    worker_thread.start()
+
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
